@@ -2,6 +2,7 @@ package uploader
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -53,4 +54,33 @@ func (m *MultiProvider) DeleteFile(ctx context.Context, path string) error {
 
 func (m *MultiProvider) GetPresignedURL(ctx context.Context, path string, expires time.Duration) (string, error) {
 	return m.objectStore.GetPresignedURL(ctx, path, expires)
+}
+
+func (m *MultiProvider) Validate(ctx context.Context) error {
+	if m.local == nil {
+		return fmt.Errorf("multi provider: local provider not configured")
+	}
+
+	if err := validateOptional(ctx, m.local); err != nil {
+		return fmt.Errorf("multi provider: local validation failed: %w", err)
+	}
+
+	if m.objectStore == nil {
+		return fmt.Errorf("multi provider: object store not configured")
+	}
+
+	if err := validateOptional(ctx, m.objectStore); err != nil {
+		return fmt.Errorf("multi provider: object store validation failed: %w", err)
+	}
+
+	return nil
+}
+
+func validateOptional(ctx context.Context, provider Uploader) error {
+	validator, ok := provider.(ProviderValidator)
+	if !ok {
+		return nil
+	}
+
+	return validator.Validate(ctx)
 }
