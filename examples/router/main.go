@@ -269,20 +269,24 @@ func getFileHandler(app *App) router.HandlerFunc {
 
 func deleteFileHandler(app *App) router.HandlerFunc {
 	return func(ctx router.Context) error {
+		app.Logger("upload").Info("delete file request received")
+
 		filename := ctx.Param("filename", "")
 		if filename == "" {
+			app.Logger("upload").Error("filename parameter missing")
 			return router.NewBadRequestError("filename is required")
 		}
 
-		// Build file path
-		filePath := "uploads/" + filename
+		app.Logger("upload").Info("deleting file", "filename", filename)
 
 		// Delete file
-		err := app.UploadsManager().DeleteFile(ctx.Context(), filePath)
+		err := app.UploadsManager().DeleteFile(ctx.Context(), filename)
 		if err != nil {
 			app.Logger("upload").Error("failed to delete file", err)
 			return err
 		}
+
+		app.Logger("upload").Info("file deleted successfully", "filename", filename)
 
 		return ctx.JSON(http.StatusOK, router.ViewContext{
 			"success": true,

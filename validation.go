@@ -128,9 +128,9 @@ func (u *Validator) ValidateFile(file *multipart.FileHeader) error {
 			},
 		).WithCode(400).WithTextCode("INVALID_MIME_TYPE").
 			WithMetadata(map[string]any{
-				"filename":          file.Filename,
-				"content_type":      file.Header.Get("Content-Type"),
-				"allowed_types":     getAllowedMsg(u.allowedMimeTypes),
+				"filename":      file.Filename,
+				"content_type":  file.Header.Get("Content-Type"),
+				"allowed_types": getAllowedMsg(u.allowedMimeTypes),
 			})
 	}
 
