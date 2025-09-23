@@ -1,0 +1,17 @@
+{
+  "name": "router-example",
+  "environment": "development",
+  "base_url": "http://localhost:4000",
+  "images": {
+    "fs": {
+        "base_path": "uploads"
+    },
+    "s3": {
+        "bucket": "mh-images",
+        "base_path": "uploads",
+        "profile": "localstack",
+        "region": "us-east-1",
+        "endpoint_url":"http://localhost:4566"
+    }
+  }
+}

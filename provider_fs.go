@@ -108,12 +108,11 @@ func (p *FSProvider) GetPresignedURL(ctx context.Context, path string, _ time.Du
 }
 
 func joinSegments(prefix, path string) string {
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
+	path = strings.TrimPrefix(path, "/")
 
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
 	}
+
 	return prefix + path
 }
