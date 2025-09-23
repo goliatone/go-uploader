@@ -98,6 +98,8 @@ github.com/goliatone/go-print v0.4.1 h1:rRcmZOWd27gq25Ays0nRu09tAH6wgTdfshE4rPpN
 github.com/goliatone/go-print v0.4.1/go.mod h1:hx13/Im2TeOYwwBwj/ImfjneDQ0MyN0ybfrgHripAus=
 github.com/goliatone/go-router v0.15.0 h1:HHnGRr7pdee/kSX94ioHcksJnIDqUcHaS3vDdsMbu1Q=
 github.com/goliatone/go-router v0.15.0/go.mod h1:Bgl3LturmoBNSGoxEVGYfF6MzeazYyw+5dkRKEObYxs=
+github.com/goliatone/go-router v0.16.0 h1:pRRqi4fKcoXN7ke4Ye3k5ay2980AKeyznI3ezOisU2o=
+github.com/goliatone/go-router v0.16.0/go.mod h1:Bgl3LturmoBNSGoxEVGYfF6MzeazYyw+5dkRKEObYxs=
 github.com/goodsign/monday v1.0.2 h1:k8kRMkCRVfCTWOU4dRfRgneQsWlB1+mJd3MxG0lGLzQ=
 github.com/goodsign/monday v1.0.2/go.mod h1:r4T4breXpoFwspQNM+u2sLxJb2zyTaxVGqUfTBjWOu8=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=

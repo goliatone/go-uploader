@@ -9,7 +9,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.6
 	github.com/goliatone/go-config v0.3.2
 	github.com/goliatone/go-logger v0.3.0
-	github.com/goliatone/go-router v0.15.0
+	github.com/goliatone/go-router v0.16.0
 	github.com/goliatone/go-uploader v0.0.0
 )
 
