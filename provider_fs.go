@@ -107,6 +107,37 @@ func (p *FSProvider) GetPresignedURL(ctx context.Context, path string, _ time.Du
 	return joinSegments(p.urlPrefix, path), nil
 }
 
+func (p *FSProvider) Validate(ctx context.Context) error {
+	if p.base == "" {
+		return fmt.Errorf("fs provider: base path not configured")
+	}
+
+	info, err := os.Stat(p.base)
+	if err != nil {
+		return fmt.Errorf("fs provider: stat base path: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("fs provider: base path is not a directory: %s", p.base)
+	}
+
+	tmpFile, err := os.CreateTemp(p.base, ".go-uploader-*")
+	if err != nil {
+		return fmt.Errorf("fs provider: create temp file: %w", err)
+	}
+
+	name := tmpFile.Name()
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("fs provider: close temp file: %w", err)
+	}
+
+	if err := os.Remove(name); err != nil {
+		return fmt.Errorf("fs provider: cleanup temp file: %w", err)
+	}
+
+	return nil
+}
+
 func joinSegments(prefix, path string) string {
 	path = strings.TrimPrefix(path, "/")
 
