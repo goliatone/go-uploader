@@ -122,3 +122,20 @@ func (p *AWSProvider) getURL(key string) string {
 
 	return out
 }
+
+func (p *AWSProvider) Validate(ctx context.Context) error {
+	if p.client == nil {
+		return fmt.Errorf("aws provider: client not configured")
+	}
+
+	if p.bucket == "" {
+		return fmt.Errorf("aws provider: bucket not configured")
+	}
+
+	_, err := p.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(p.bucket)})
+	if err != nil {
+		return fmt.Errorf("aws provider: head bucket: %w", err)
+	}
+
+	return nil
+}
