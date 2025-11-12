@@ -4,14 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
-var _ Uploader = &FSProvider{}
+var (
+	_ Uploader        = &FSProvider{}
+	_ ChunkedUploader = &FSProvider{}
+	_ PresignedPoster = &FSProvider{}
+)
 
 type FSProvider struct {
 	root      fs.FS
@@ -138,6 +144,117 @@ func (p *FSProvider) Validate(ctx context.Context) error {
 	return nil
 }
 
+func (p *FSProvider) InitiateChunked(_ context.Context, session *ChunkSession) (*ChunkSession, error) {
+	if session == nil {
+		return nil, fmt.Errorf("fs provider: chunk session is nil")
+	}
+
+	dir := p.chunkDir(session.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("fs provider: create chunk directory: %w", err)
+	}
+
+	return session, nil
+}
+
+func (p *FSProvider) UploadChunk(_ context.Context, session *ChunkSession, index int, payload io.Reader) (ChunkPart, error) {
+	if session == nil {
+		return ChunkPart{}, fmt.Errorf("fs provider: chunk session is nil")
+	}
+
+	if payload == nil {
+		return ChunkPart{}, fmt.Errorf("fs provider: payload reader is nil")
+	}
+
+	if index < 0 {
+		return ChunkPart{}, ErrChunkPartOutOfRange
+	}
+
+	dir := p.chunkDir(session.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return ChunkPart{}, fmt.Errorf("fs provider: ensure chunk directory: %w", err)
+	}
+
+	chunkPath := p.chunkFilePath(session.ID, index)
+	if _, err := os.Stat(chunkPath); err == nil {
+		return ChunkPart{}, ErrChunkPartDuplicate
+	}
+
+	file, err := os.Create(chunkPath)
+	if err != nil {
+		return ChunkPart{}, fmt.Errorf("fs provider: create chunk file: %w", err)
+	}
+	defer file.Close()
+
+	written, err := io.Copy(file, payload)
+	if err != nil {
+		return ChunkPart{}, fmt.Errorf("fs provider: write chunk: %w", err)
+	}
+
+	return ChunkPart{
+		Index:      index,
+		Size:       written,
+		UploadedAt: time.Now(),
+	}, nil
+}
+
+func (p *FSProvider) CompleteChunked(_ context.Context, session *ChunkSession) (*FileMeta, error) {
+	if session == nil {
+		return nil, fmt.Errorf("fs provider: chunk session is nil")
+	}
+
+	if len(session.UploadedParts) == 0 {
+		return nil, fmt.Errorf("fs provider: no parts uploaded for session %s", session.ID)
+	}
+
+	fullPath := filepath.Join(p.base, filepath.Clean(session.Key))
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		return nil, fmt.Errorf("fs provider: ensure destination dir: %w", err)
+	}
+
+	dest, err := os.Create(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("fs provider: create destination file: %w", err)
+	}
+	defer dest.Close()
+
+	indexes := make([]int, 0, len(session.UploadedParts))
+	for idx := range session.UploadedParts {
+		indexes = append(indexes, idx)
+	}
+	sort.Ints(indexes)
+
+	for _, idx := range indexes {
+		chunkPath := p.chunkFilePath(session.ID, idx)
+		if err := appendChunk(dest, chunkPath); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := os.RemoveAll(p.chunkDir(session.ID)); err != nil {
+		return nil, fmt.Errorf("fs provider: cleanup chunks: %w", err)
+	}
+
+	return &FileMeta{
+		Name:         session.Key,
+		OriginalName: session.Key,
+		Size:         session.TotalSize,
+		URL:          fullPath,
+	}, nil
+}
+
+func (p *FSProvider) AbortChunked(_ context.Context, session *ChunkSession) error {
+	if session == nil {
+		return fmt.Errorf("fs provider: chunk session is nil")
+	}
+
+	return os.RemoveAll(p.chunkDir(session.ID))
+}
+
+func (p *FSProvider) CreatePresignedPost(context.Context, string, *Metadata) (*PresignedPost, error) {
+	return nil, ErrNotImplemented
+}
+
 func joinSegments(prefix, path string) string {
 	path = strings.TrimPrefix(path, "/")
 
@@ -146,4 +263,26 @@ func joinSegments(prefix, path string) string {
 	}
 
 	return prefix + path
+}
+
+func (p *FSProvider) chunkDir(sessionID string) string {
+	return filepath.Join(p.base, ".chunks", sessionID)
+}
+
+func (p *FSProvider) chunkFilePath(sessionID string, index int) string {
+	return filepath.Join(p.chunkDir(sessionID), fmt.Sprintf("%08d.part", index))
+}
+
+func appendChunk(dst *os.File, chunkPath string) error {
+	src, err := os.Open(chunkPath)
+	if err != nil {
+		return fmt.Errorf("fs provider: open chunk: %w", err)
+	}
+	defer src.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		return fmt.Errorf("fs provider: append chunk: %w", err)
+	}
+
+	return nil
 }
