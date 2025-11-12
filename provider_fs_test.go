@@ -1,6 +1,7 @@
 package uploader
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -220,6 +221,81 @@ func TestFSProviderDeleteFile(t *testing.T) {
 			t.Errorf("Expected ErrImageNotFound, got %v", err)
 		}
 	})
+}
+
+func TestFSProviderChunkedLifecycle(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+	provider := NewFSProvider(tmpDir)
+
+	session := &ChunkSession{
+		ID:            "session-1",
+		Key:           "chunks/output.bin",
+		TotalSize:     8,
+		UploadedParts: make(map[int]ChunkPart),
+	}
+
+	if _, err := provider.InitiateChunked(ctx, session); err != nil {
+		t.Fatalf("InitiateChunked failed: %v", err)
+	}
+
+	part1, err := provider.UploadChunk(ctx, session, 0, bytes.NewReader([]byte("abcd")))
+	if err != nil {
+		t.Fatalf("UploadChunk part1 failed: %v", err)
+	}
+	session.UploadedParts[0] = part1
+
+	part2, err := provider.UploadChunk(ctx, session, 1, bytes.NewReader([]byte("efgh")))
+	if err != nil {
+		t.Fatalf("UploadChunk part2 failed: %v", err)
+	}
+	session.UploadedParts[1] = part2
+
+	meta, err := provider.CompleteChunked(ctx, session)
+	if err != nil {
+		t.Fatalf("CompleteChunked failed: %v", err)
+	}
+
+	if meta.URL == "" {
+		t.Fatalf("expected meta URL to be set")
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "chunks", "output.bin"))
+	if err != nil {
+		t.Fatalf("reading combined file failed: %v", err)
+	}
+
+	if string(content) != "abcdefgh" {
+		t.Fatalf("expected combined content 'abcdefgh', got %s", string(content))
+	}
+}
+
+func TestFSProviderAbortChunked(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+	provider := NewFSProvider(tmpDir)
+
+	session := &ChunkSession{
+		ID:        "session-abort",
+		Key:       "chunks/abort.bin",
+		TotalSize: 4,
+	}
+
+	if _, err := provider.InitiateChunked(ctx, session); err != nil {
+		t.Fatalf("InitiateChunked failed: %v", err)
+	}
+
+	if _, err := provider.UploadChunk(ctx, session, 0, bytes.NewReader([]byte("data"))); err != nil {
+		t.Fatalf("UploadChunk failed: %v", err)
+	}
+
+	if err := provider.AbortChunked(ctx, session); err != nil {
+		t.Fatalf("AbortChunked failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tmpDir, ".chunks", session.ID)); !os.IsNotExist(err) {
+		t.Fatalf("expected chunk directory to be removed")
+	}
 }
 
 func TestFSProviderGetPresignedURL(t *testing.T) {

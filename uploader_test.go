@@ -14,12 +14,12 @@ import (
 )
 
 type mockUploader struct {
-	uploadFunc        func(ctx context.Context, path string, content []byte, opts ...UploadOption) (string, error)
-	getFunc           func(ctx context.Context, path string) ([]byte, error)
-	deleteFunc        func(ctx context.Context, path string) error
-	getPresignedFunc  func(ctx context.Context, path string, expires time.Duration) (string, error)
-	validateFunc      func(ctx context.Context) error
-	shouldValidate    bool
+	uploadFunc       func(ctx context.Context, path string, content []byte, opts ...UploadOption) (string, error)
+	getFunc          func(ctx context.Context, path string) ([]byte, error)
+	deleteFunc       func(ctx context.Context, path string) error
+	getPresignedFunc func(ctx context.Context, path string, expires time.Duration) (string, error)
+	validateFunc     func(ctx context.Context) error
+	shouldValidate   bool
 }
 
 func (m *mockUploader) UploadFile(ctx context.Context, path string, content []byte, opts ...UploadOption) (string, error) {

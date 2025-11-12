@@ -1,9 +1,11 @@
 package uploader
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -228,6 +230,64 @@ func TestMultiProviderGetFile(t *testing.T) {
 			t.Errorf("Expected 'object store error', got '%s'", err.Error())
 		}
 	})
+}
+
+func TestMultiProviderChunkedLifecycle(t *testing.T) {
+	ctx := context.Background()
+	localDir := t.TempDir()
+	remoteDir := t.TempDir()
+
+	localProvider := NewFSProvider(localDir)
+	objectStore := NewFSProvider(remoteDir)
+
+	provider := NewMultiProvider(localProvider, objectStore)
+
+	session := &ChunkSession{
+		ID:            "multi-session",
+		Key:           "chunks/multi.bin",
+		TotalSize:     8,
+		UploadedParts: make(map[int]ChunkPart),
+	}
+
+	if _, err := provider.InitiateChunked(ctx, session); err != nil {
+		t.Fatalf("InitiateChunked failed: %v", err)
+	}
+
+	part1, err := provider.UploadChunk(ctx, session, 0, bytes.NewReader([]byte("abcd")))
+	if err != nil {
+		t.Fatalf("UploadChunk part1 failed: %v", err)
+	}
+	session.UploadedParts[0] = part1
+
+	part2, err := provider.UploadChunk(ctx, session, 1, bytes.NewReader([]byte("efgh")))
+	if err != nil {
+		t.Fatalf("UploadChunk part2 failed: %v", err)
+	}
+	session.UploadedParts[1] = part2
+
+	meta, err := provider.CompleteChunked(ctx, session)
+	if err != nil {
+		t.Fatalf("CompleteChunked failed: %v", err)
+	}
+
+	if meta == nil || meta.Name == "" {
+		t.Fatalf("expected meta to be returned")
+	}
+
+	remotePath := filepath.Join(remoteDir, "chunks", "multi.bin")
+	remoteContent, err := os.ReadFile(remotePath)
+	if err != nil {
+		t.Fatalf("reading remote content failed: %v", err)
+	}
+
+	if string(remoteContent) != "abcdefgh" {
+		t.Fatalf("expected remote content 'abcdefgh', got %s", string(remoteContent))
+	}
+
+	localPath := filepath.Join(localDir, "chunks", "multi.bin")
+	if _, err := os.Stat(localPath); err != nil {
+		t.Fatalf("local cache missing: %v", err)
+	}
 }
 
 func TestMultiProviderDeleteFile(t *testing.T) {
