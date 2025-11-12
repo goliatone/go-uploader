@@ -182,6 +182,17 @@ func (u *Validator) RandomName(file *multipart.FileHeader, paths ...string) (str
 	return imageName, nil
 }
 
+func (u *Validator) IsAllowedMimeType(mime string) bool {
+	if mime == "" {
+		return false
+	}
+	return u.allowedMimeTypes[mime]
+}
+
+func (u *Validator) MaxFileSize() int64 {
+	return u.maxFileSize
+}
+
 func ValidateFile(file *multipart.FileHeader) error {
 	max := DefaultMaxFileSize
 	if file.Size > max {
