@@ -1,5 +1,25 @@
 # Changelog
 
+# [0.3.0](https://github.com/goliatone/go-uploader/compare/v0.2.0...v0.3.0) - (Unreleased)
+
+## <!-- 16 -->➕ Add
+
+- Chunked upload sessions with `InitiateChunked/UploadChunk/CompleteChunked/AbortChunked`, filesystem chunk staging, and AWS multipart orchestration.
+- Direct-to-storage presigned posts plus `ConfirmPresignedUpload` so APIs persist metadata without re-uploading bytes.
+- Server-side thumbnail pipeline (`ThumbnailSize`, `ImageProcessor`, `HandleImageWithThumbnails`) with filesystem + multi-provider support.
+- Post-upload callbacks with strict/best-effort modes and the default async executor for background processing.
+
+## <!-- 3 -->📚 Documentation
+
+- Refresh README + FEATURE_TDD with implementation status, sample snippets, and cross-links to runnable examples.
+- Add example-specific READMEs (chunk UI simulator, presigned upload form, thumbnail handler, callback logging) plus `examples/README.md` for quick discovery.
+- Draft release notes for v0.3.0 covering API additions, migration notes, and testing instructions.
+
+## <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Add `go test ./... -coverprofile=coverage.out` run to capture baseline coverage before releasing v0.3.0.
+- Update TODO + FEATURE_TSK with Phase 5 completion details and next-release guidance.
+
 # [0.2.0](https://github.com/goliatone/go-uploader/compare/v0.1.0...v0.2.0) - (2025-09-23)
 
 ## <!-- 1 -->🐛 Bug Fixes
@@ -46,5 +66,4 @@
 - Update examples ([ae2c221](https://github.com/goliatone/go-uploader/commit/ae2c2213f00ff04b30e2e849f60c433b830bf8ce))  - (goliatone)
 - Update example ([e21990b](https://github.com/goliatone/go-uploader/commit/e21990b31fa5fc28238bfb8472d34a191b26db10))  - (goliatone)
 - Add gitkeep to example ([b56496f](https://github.com/goliatone/go-uploader/commit/b56496fd9c01a36955a8c03b4ea75f0a6ece6e82))  - (goliatone)
-
 

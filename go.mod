@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/goliatone/go-errors v0.9.0
 	github.com/goliatone/go-print v0.4.1
+	github.com/google/uuid v1.6.0
 	github.com/jszwec/s3fs/v2 v2.0.0
 )
 
