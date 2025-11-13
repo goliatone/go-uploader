@@ -37,6 +37,7 @@ func main() {
 		if err := manager.UploadChunk(ctx, session.ID, chunkCount, bytes.NewReader(data[offset:end])); err != nil {
 			panic(err)
 		}
+		fmt.Printf("Uploaded chunk %d (%d bytes)\n", chunkCount, end-offset)
 		chunkCount++
 	}
 
