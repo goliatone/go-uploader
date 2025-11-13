@@ -77,5 +77,8 @@ func newTestFileHeader(t *testing.T, field, filename, contentType string, data [
 		t.Fatalf("ParseMultipartForm: %v", err)
 	}
 
-	return req.MultipartForm.File[field][0]
+	fh := req.MultipartForm.File[field][0]
+	fh.Header.Set("Content-Type", contentType)
+	fh.Size = int64(len(data))
+	return fh
 }
