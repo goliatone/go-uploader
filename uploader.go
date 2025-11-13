@@ -2,8 +2,10 @@ package uploader
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"mime/multipart"
+	"path"
 	"strings"
 	"time"
 
@@ -62,18 +64,23 @@ type ImageProcessor interface {
 	Generate(ctx context.Context, source []byte, size ThumbnailSize, contentType string) ([]byte, string, error)
 }
 
+type UploadCallback func(ctx context.Context, meta *FileMeta) error
+
 var _ Uploader = &Manager{}
 
 type Manager struct {
-	logger         Logger
-	provider       Uploader
-	validator      *Validator
-	chunkStore     *ChunkSessionStore
-	chunkPartSize  int64
-	imageProcessor ImageProcessor
-	providerErr    error
-	validated      bool
-	validateCtx    context.Context
+	logger           Logger
+	provider         Uploader
+	validator        *Validator
+	chunkStore       *ChunkSessionStore
+	chunkPartSize    int64
+	imageProcessor   ImageProcessor
+	callback         UploadCallback
+	callbackMode     CallbackMode
+	callbackExecutor CallbackExecutor
+	providerErr      error
+	validated        bool
+	validateCtx      context.Context
 }
 
 type Option func(m *Manager)
@@ -140,14 +147,38 @@ func WithImageProcessor(processor ImageProcessor) Option {
 	}
 }
 
+func WithOnUploadComplete(cb UploadCallback) Option {
+	return func(m *Manager) {
+		m.callback = cb
+	}
+}
+
+func WithCallbackMode(mode CallbackMode) Option {
+	return func(m *Manager) {
+		if mode != "" {
+			m.callbackMode = mode
+		}
+	}
+}
+
+func WithCallbackExecutor(exec CallbackExecutor) Option {
+	return func(m *Manager) {
+		if exec != nil {
+			m.callbackExecutor = exec
+		}
+	}
+}
+
 func NewManager(opts ...Option) *Manager {
 	m := &Manager{
-		logger:         &DefaultLogger{},
-		validator:      NewValidator(),
-		validateCtx:    context.Background(),
-		chunkStore:     NewChunkSessionStore(DefaultChunkSessionTTL),
-		chunkPartSize:  DefaultChunkPartSize,
-		imageProcessor: NewLocalImageProcessor(),
+		logger:           &DefaultLogger{},
+		validator:        NewValidator(),
+		validateCtx:      context.Background(),
+		chunkStore:       NewChunkSessionStore(DefaultChunkSessionTTL),
+		chunkPartSize:    DefaultChunkPartSize,
+		imageProcessor:   NewLocalImageProcessor(),
+		callbackMode:     CallbackModeBestEffort,
+		callbackExecutor: syncCallbackExecutor{},
 	}
 
 	for _, opt := range opts {
@@ -305,6 +336,11 @@ func (m *Manager) CompleteChunked(ctx context.Context, sessionID string) (*FileM
 	}
 
 	m.ensureChunkStore().Delete(sessionID)
+
+	if err := m.maybeRunCallback(ctx, meta); err != nil {
+		return nil, err
+	}
+
 	return meta, nil
 }
 
@@ -443,10 +479,18 @@ func (m *Manager) ConfirmPresignedUpload(ctx context.Context, result *PresignedU
 		URL:          url,
 	}
 
+	if err := m.maybeRunCallback(ctx, meta); err != nil {
+		return nil, err
+	}
+
 	return meta, nil
 }
 
 func (m *Manager) HandleFile(ctx context.Context, file *multipart.FileHeader, path string) (*FileMeta, error) {
+	return m.handleFile(ctx, file, path, true)
+}
+
+func (m *Manager) handleFile(ctx context.Context, file *multipart.FileHeader, path string, triggerCallback bool) (*FileMeta, error) {
 	if file == nil {
 		return nil, gerrors.New("file not found", gerrors.CategoryNotFound).
 			WithCode(404).
@@ -461,13 +505,12 @@ func (m *Manager) HandleFile(ctx context.Context, file *multipart.FileHeader, pa
 	}
 
 	fileBuff, err := file.Open()
-	defer func(fb multipart.File) {
-		_ = fb.Close()
-	}(fileBuff)
-
 	if err != nil {
 		return nil, err
 	}
+	defer func(fb multipart.File) {
+		_ = fb.Close()
+	}(fileBuff)
 
 	var url string
 	var name string
@@ -499,6 +542,12 @@ func (m *Manager) HandleFile(ctx context.Context, file *multipart.FileHeader, pa
 		URL:          url,
 	}
 
+	if triggerCallback {
+		if err := m.maybeRunCallback(ctx, meta); err != nil {
+			return nil, err
+		}
+	}
+
 	return meta, nil
 }
 
@@ -507,7 +556,7 @@ func (m *Manager) HandleImageWithThumbnails(ctx context.Context, file *multipart
 		return nil, err
 	}
 
-	baseMeta, err := m.HandleFile(ctx, file, path)
+	baseMeta, err := m.handleFile(ctx, file, path, false)
 	if err != nil {
 		return nil, err
 	}
@@ -544,10 +593,23 @@ func (m *Manager) HandleImageWithThumbnails(ctx context.Context, file *multipart
 		}
 	}
 
-	return &ImageMeta{
+	imageMeta := &ImageMeta{
 		FileMeta:   baseMeta,
 		Thumbnails: thumbnails,
-	}, nil
+	}
+
+	if err := m.maybeRunCallback(ctx, baseMeta); err != nil {
+		thumbKeys := make([]string, 0, len(thumbnails))
+		for _, thumb := range thumbnails {
+			if thumb != nil {
+				thumbKeys = append(thumbKeys, thumb.Name)
+			}
+		}
+		m.cleanupFiles(ctx, thumbKeys...)
+		return nil, err
+	}
+
+	return imageMeta, nil
 }
 
 func (m *Manager) UploadFile(ctx context.Context, path string, content []byte, opts ...UploadOption) (string, error) {
@@ -698,4 +760,52 @@ func buildThumbnailKey(name, variant string) string {
 		base = name
 	}
 	return fmt.Sprintf("%s__%s%s", base, variant, ext)
+}
+
+func (m *Manager) ensureCallbackExecutor() CallbackExecutor {
+	if m.callbackExecutor == nil {
+		m.callbackExecutor = syncCallbackExecutor{}
+	}
+	return m.callbackExecutor
+}
+
+func (m *Manager) maybeRunCallback(ctx context.Context, meta *FileMeta) error {
+	if m.callback == nil || meta == nil {
+		return nil
+	}
+
+	exec := m.ensureCallbackExecutor()
+	if m.callbackMode == CallbackModeStrict {
+		if _, ok := exec.(*AsyncCallbackExecutor); ok {
+			m.logger.Info("async callback executor cannot enforce strict mode; treating as best effort")
+		}
+	}
+
+	start := time.Now()
+	err := exec.Execute(ctx, m.callback, meta)
+	if err != nil {
+		m.logger.Error("upload callback failed", err, "key", meta.Name)
+		if m.callbackMode == CallbackModeStrict {
+			m.cleanupFiles(ctx, meta.Name)
+			return fmt.Errorf("upload callback failed: %w", err)
+		}
+		return nil
+	}
+
+	m.logger.Info("upload callback completed", "key", meta.Name, "duration", time.Since(start))
+	return nil
+}
+
+func (m *Manager) cleanupFiles(ctx context.Context, keys ...string) {
+	if m.provider == nil {
+		return
+	}
+	for _, key := range keys {
+		if key == "" {
+			continue
+		}
+		if err := m.provider.DeleteFile(ctx, key); err != nil {
+			m.logger.Error("cleanup file failed", err, "key", key)
+		}
+	}
 }
