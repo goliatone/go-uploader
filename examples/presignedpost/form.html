@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Presigned Upload Demo</title>
+</head>
+<body>
+  <h1>Direct-to-storage upload</h1>
+  <form action="https://upload.example.com/form" method="post" enctype="multipart/form-data">
+    <!-- Replace these hidden fields with the values printed by go run ./examples/presignedpost -->
+    <input type="hidden" name="key" value="uploads/demo.txt">
+    <input type="hidden" name="token" value="demo-token">
+    <input type="file" name="file" />
+    <button type="submit">Upload</button>
+  </form>
+</body>
+</html>
