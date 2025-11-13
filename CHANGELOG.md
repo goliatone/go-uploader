@@ -1,24 +1,34 @@
 # Changelog
 
-# [0.3.0](https://github.com/goliatone/go-uploader/compare/v0.2.0...v0.3.0) - (Unreleased)
+# [0.3.0](https://github.com/goliatone/go-uploader/compare/v0.2.0...v0.3.0) - (2025-11-13)
+
+## <!-- 13 -->📦 Bumps
+
+- Bump version: v0.3.0 ([f0352dd](https://github.com/goliatone/go-uploader/commit/f0352ddfd7d43973cbd255a11cab5e88bf486c1f))  - (goliatone)
 
 ## <!-- 16 -->➕ Add
 
-- Chunked upload sessions with `InitiateChunked/UploadChunk/CompleteChunked/AbortChunked`, filesystem chunk staging, and AWS multipart orchestration.
-- Direct-to-storage presigned posts plus `ConfirmPresignedUpload` so APIs persist metadata without re-uploading bytes.
-- Server-side thumbnail pipeline (`ThumbnailSize`, `ImageProcessor`, `HandleImageWithThumbnails`) with filesystem + multi-provider support.
-- Post-upload callbacks with strict/best-effort modes and the default async executor for background processing.
+- Support image processing ([b9a59b7](https://github.com/goliatone/go-uploader/commit/b9a59b7ade81ff7d32bdd15e115f7de4642a6fb4))  - (goliatone)
+- Handle callbacks and progress ([0fe83e6](https://github.com/goliatone/go-uploader/commit/0fe83e6b3860e26480d8741c6076821c3bf33541))  - (goliatone)
+- Callback executor ([65647a3](https://github.com/goliatone/go-uploader/commit/65647a3e0a83c2edf1dbb96ccc6ca0d90dc34cc7))  - (goliatone)
+- Updated validation ([5c825a1](https://github.com/goliatone/go-uploader/commit/5c825a1ef0e9360df441096da69e30f559a4e03b))  - (goliatone)
+- Image processor ([c67ee6d](https://github.com/goliatone/go-uploader/commit/c67ee6d46065d45b2146da089d2764351bef4cfa))  - (goliatone)
+- Chunk uploader, presigned urls, and image processor ([475f688](https://github.com/goliatone/go-uploader/commit/475f688e38fcdae9013a4da0849ed9a3e0c6c110))  - (goliatone)
+- Implement chunk uploaders ([5f1cdb5](https://github.com/goliatone/go-uploader/commit/5f1cdb5b65be45566c2c105eec50869362fb0f25))  - (goliatone)
+- Chunk store ([f67f9c5](https://github.com/goliatone/go-uploader/commit/f67f9c5122f109df52923829c43cad7639c390ec))  - (goliatone)
+- Defaults ([2a14211](https://github.com/goliatone/go-uploader/commit/2a14211b6897704be23b1eaef50c2558d73090e3))  - (goliatone)
+- New errors to handle chunks ([8fb1298](https://github.com/goliatone/go-uploader/commit/8fb12985b4d8d2376e50d00c2a8d689833b1ce56))  - (goliatone)
+- Thumbnail support ([b6d97a8](https://github.com/goliatone/go-uploader/commit/b6d97a82f8f43c36ff32e25bf5bbe4d3be57bf23))  - (goliatone)
 
 ## <!-- 3 -->📚 Documentation
 
-- Refresh README + FEATURE_TDD with implementation status, sample snippets, and cross-links to runnable examples.
-- Add example-specific READMEs (chunk UI simulator, presigned upload form, thumbnail handler, callback logging) plus `examples/README.md` for quick discovery.
-- Draft release notes for v0.3.0 covering API additions, migration notes, and testing instructions.
+- Update changelog for v0.2.0 ([2b006f3](https://github.com/goliatone/go-uploader/commit/2b006f31db12780af508c3fe82be77b67a7ce356))  - (goliatone)
 
 ## <!-- 7 -->⚙️ Miscellaneous Tasks
 
-- Add `go test ./... -coverprofile=coverage.out` run to capture baseline coverage before releasing v0.3.0.
-- Update TODO + FEATURE_TSK with Phase 5 completion details and next-release guidance.
+- Update docs ([d6c230d](https://github.com/goliatone/go-uploader/commit/d6c230d81790e4deadd59c79ae9682d2827a1f96))  - (goliatone)
+- Update tests ([07309d1](https://github.com/goliatone/go-uploader/commit/07309d18e8f77802972e9161ab98234360e04876))  - (goliatone)
+- Update examples ([6d63245](https://github.com/goliatone/go-uploader/commit/6d63245645cc28ae3c6ba8eb5b4cf4ef78956534))  - (goliatone)
 
 # [0.2.0](https://github.com/goliatone/go-uploader/compare/v0.1.0...v0.2.0) - (2025-09-23)
 
@@ -66,4 +76,5 @@
 - Update examples ([ae2c221](https://github.com/goliatone/go-uploader/commit/ae2c2213f00ff04b30e2e849f60c433b830bf8ce))  - (goliatone)
 - Update example ([e21990b](https://github.com/goliatone/go-uploader/commit/e21990b31fa5fc28238bfb8472d34a191b26db10))  - (goliatone)
 - Add gitkeep to example ([b56496f](https://github.com/goliatone/go-uploader/commit/b56496fd9c01a36955a8c03b4ea75f0a6ece6e82))  - (goliatone)
+
 
