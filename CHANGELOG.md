@@ -1,5 +1,28 @@
 # Changelog
 
+# [0.4.0](https://github.com/goliatone/go-uploader/compare/v0.3.0...v0.4.0) - (2026-03-18)
+
+## <!-- 13 -->📦 Bumps
+
+- Bump version: v0.4.0 ([f168c99](https://github.com/goliatone/go-uploader/commit/f168c9950ca356241412fa074acf1b618ec8e885))  - (goliatone)
+
+## <!-- 16 -->➕ Add
+
+- Secure headers for s3 ([b3c89e5](https://github.com/goliatone/go-uploader/commit/b3c89e5fafef4c63cc5f6f208c6363dc79693a0a))  - (goliatone)
+- Better error handling ([83628e3](https://github.com/goliatone/go-uploader/commit/83628e380fdd056a7cf3c5667eb48c55293361c4))  - (goliatone)
+- Provider factory ([7f29900](https://github.com/goliatone/go-uploader/commit/7f2990002ea24ba74ed38179480c0a73fde85ac8))  - (goliatone)
+
+## <!-- 3 -->📚 Documentation
+
+- Update changelog for v0.3.0 ([13b6e79](https://github.com/goliatone/go-uploader/commit/13b6e797025eaeea09f87448a4801f925d84637d))  - (goliatone)
+
+## <!-- 7 -->⚙️ Miscellaneous Tasks
+
+- Update readme ([70de785](https://github.com/goliatone/go-uploader/commit/70de785d64ad531c1967cbfab81b8dcf1a20559c))  - (goliatone)
+- Update deps ([88206bf](https://github.com/goliatone/go-uploader/commit/88206bf171c6d36a05d6b8141c1ba9a46ff3e2ce))  - (goliatone)
+- Update examples ([e333154](https://github.com/goliatone/go-uploader/commit/e333154b07a3a2d10dbaa3db8e802868c8ad6177))  - (goliatone)
+- Update tests ([a06920f](https://github.com/goliatone/go-uploader/commit/a06920f9e4fb01b731ffc6f14e04f77528e61177))  - (goliatone)
+
 # [0.3.0](https://github.com/goliatone/go-uploader/compare/v0.2.0...v0.3.0) - (2025-11-13)
 
 ## <!-- 13 -->📦 Bumps
