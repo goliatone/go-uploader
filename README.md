@@ -110,6 +110,31 @@ type Uploader interface {
 }
 ```
 
+## Provider Factory
+
+Provider selection can be moved out of app logic and into config-driven bootstrap using `NewProvider`.
+
+```go
+provider, err := uploader.NewProvider(ctx, uploader.ProviderConfig{
+    Backend: uploader.BackendS3,
+    S3: uploader.S3Config{
+        Bucket:          "my-bucket",
+        Region:          "us-east-1",
+        EndpointURL:     "http://localhost:4566",
+        AccessKeyID:     "test",
+        SecretAccessKey: "test",
+        UsePathStyle:    true,
+    },
+})
+```
+
+Supported backends:
+- `fs`
+- `s3`
+- `multi`
+
+For `multi`, the filesystem config provides the local cache/mirror and the S3 config provides the remote source of truth.
+
 ## Providers
 
 ### FSProvider
