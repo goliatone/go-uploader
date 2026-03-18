@@ -395,10 +395,13 @@ type fakeS3Client struct {
 	abortMultipartOutput    *s3.AbortMultipartUploadOutput
 	abortCalled             bool
 	lastCompletedParts      []types.CompletedPart
+	lastPutObjectInput      *s3.PutObjectInput
+	lastCreateInput         *s3.CreateMultipartUploadInput
 	options                 s3.Options
 }
 
-func (f *fakeS3Client) PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+func (f *fakeS3Client) PutObject(_ context.Context, input *s3.PutObjectInput, _ ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+	f.lastPutObjectInput = input
 	return &s3.PutObjectOutput{}, nil
 }
 
@@ -416,7 +419,8 @@ func (f *fakeS3Client) HeadBucket(context.Context, *s3.HeadBucketInput, ...func(
 	return &s3.HeadBucketOutput{}, nil
 }
 
-func (f *fakeS3Client) CreateMultipartUpload(context.Context, *s3.CreateMultipartUploadInput, ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
+func (f *fakeS3Client) CreateMultipartUpload(_ context.Context, params *s3.CreateMultipartUploadInput, _ ...func(*s3.Options)) (*s3.CreateMultipartUploadOutput, error) {
+	f.lastCreateInput = params
 	return f.createMultipartOutput, nil
 }
 

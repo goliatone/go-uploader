@@ -436,11 +436,18 @@ func TestMultiProviderValidate(t *testing.T) {
 	})
 
 	t.Run("local provider validation failure", func(t *testing.T) {
-		localProvider := NewFSProvider("/nonexistent")
+		tmpFile, err := os.CreateTemp("", "multi-provider-not-dir")
+		if err != nil {
+			t.Fatalf("Failed to create temp file: %v", err)
+		}
+		defer os.Remove(tmpFile.Name())
+		_ = tmpFile.Close()
+
+		localProvider := NewFSProvider(tmpFile.Name())
 		objectStore := &mockProvider{}
 		provider := NewMultiProvider(localProvider, objectStore)
 
-		err := provider.Validate(context.Background())
+		err = provider.Validate(context.Background())
 		if err == nil {
 			t.Fatal("Expected error from local provider validation failure")
 		}

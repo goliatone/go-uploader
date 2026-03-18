@@ -392,15 +392,15 @@ func TestFSProviderValidate(t *testing.T) {
 	})
 
 	t.Run("nonexistent base path", func(t *testing.T) {
-		provider := NewFSProvider("/nonexistent/path")
+		basePath := filepath.Join(t.TempDir(), "fs-provider-created")
+		provider := NewFSProvider(basePath)
 
 		err := provider.Validate(context.Background())
-		if err == nil {
-			t.Fatal("Expected error for nonexistent base path")
+		if err != nil {
+			t.Fatalf("expected missing base path to be created, got %v", err)
 		}
-
-		if !strings.Contains(err.Error(), "stat base path") {
-			t.Errorf("Expected error message to contain 'stat base path', got '%s'", err.Error())
+		if _, statErr := os.Stat(basePath); statErr != nil {
+			t.Fatalf("expected base path to exist after validate: %v", statErr)
 		}
 	})
 
