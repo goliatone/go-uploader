@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	aconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	gconf "github.com/goliatone/go-config/config"
 	"github.com/goliatone/go-logger/glog"
@@ -79,45 +77,53 @@ func NewApp() *App {
 
 func WithUploadService(ctx context.Context, app *App) error {
 	cfg := app.Config().Images
-
-	s3Cfg, err := aconfig.LoadDefaultConfig(ctx,
-		aconfig.WithRegion(cfg.S3.Region),
-		aconfig.WithSharedConfigProfile(cfg.S3.Profile),
-	)
+	provider, err := uploader.NewProvider(ctx, uploader.ProviderConfig{
+		Backend: uploader.Backend(cfg.Backend),
+		FS: uploader.FSConfig{
+			BasePath:  cfg.Fs.BasePath,
+			URLPrefix: cfg.Fs.URLPrefix,
+		},
+		S3: uploader.S3Config{
+			Bucket:               cfg.S3.Bucket,
+			Region:               cfg.S3.Region,
+			BasePath:             cfg.S3.BasePath,
+			EndpointURL:          cfg.S3.EndpointURL,
+			Profile:              cfg.S3.Profile,
+			AccessKeyID:          cfg.S3.AccessKeyID,
+			SecretAccessKey:      cfg.S3.SecretAccessKey,
+			SessionToken:         cfg.S3.SessionToken,
+			UsePathStyle:         cfg.S3.UsePathStyle,
+			DisableSSL:           cfg.S3.DisableSSL,
+			ServerSideEncryption: cfg.S3.ServerSideEncryption,
+			KMSKeyID:             cfg.S3.KMSKeyID,
+		},
+	}, uploader.WithProviderFactoryLogger(app.Logger("svc.img.provider")))
 	if err != nil {
 		return err
 	}
 
-	var opts = func(o *s3.Options) {}
-	if app.IsDevelopment() {
-		opts = func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(cfg.S3.EndpointURL)
-			o.UsePathStyle = true
-		}
-	}
-
-	client := s3.NewFromConfig(s3Cfg, opts)
-	awsProvider := uploader.NewAWSProvider(client, cfg.S3.Bucket)
-	awsProvider.WithLogger(app.Logger("svc.img.aws"))
-	awsProvider.WithBasePath(cfg.S3.BasePath)
-
-	localProvider := uploader.NewFSProvider(cfg.Fs.BasePath)
-	localProvider.WithLogger(app.Logger("svc.img.fs"))
-
-	multi := uploader.NewMultiProvider(localProvider, awsProvider)
-
 	svc := uploader.NewManager(
 		uploader.WithLogger(app.Logger("svc.img")),
-		uploader.WithProvider(multi),
+		uploader.WithProvider(provider),
 	)
-
-	imageFS := uploader.NewFileFS(client, cfg.S3.Bucket)
-
-	// app.SetS3Client(client)
-	app.SetAssetsFS(imageFS)
+	app.SetAssetsFS(resolveAssetsFS(provider, cfg))
 	app.SetUploadsManager(svc)
 
 	return nil
+}
+
+func resolveAssetsFS(provider uploader.Uploader, cfg config.Images) fs.FS {
+	switch typed := provider.(type) {
+	case *uploader.MultiProvider:
+		return os.DirFS(cfg.Fs.BasePath)
+	case *uploader.FSProvider:
+		return os.DirFS(cfg.Fs.BasePath)
+	case *uploader.AWSProvider:
+		if client, ok := typed.Client().(*s3.Client); ok {
+			return uploader.NewFileFS(client, cfg.S3.Bucket)
+		}
+	}
+	return os.DirFS(cfg.Fs.BasePath)
 }
 
 func (a *App) UploadsManager() *uploader.Manager {

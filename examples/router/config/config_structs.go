@@ -10,18 +10,27 @@ type Config struct {
 }
 
 type Fs struct {
-	BasePath string `json:"base_path" koanf:"base_path"`
+	BasePath  string `json:"base_path" koanf:"base_path"`
+	URLPrefix string `json:"url_prefix" koanf:"url_prefix"`
 }
 
 type Images struct {
-	Fs Fs `json:"fs" koanf:"fs"`
-	S3 S3 `json:"s3" koanf:"s3"`
+	Backend string `json:"backend" koanf:"backend"`
+	Fs      Fs     `json:"fs" koanf:"fs"`
+	S3      S3     `json:"s3" koanf:"s3"`
 }
 
 type S3 struct {
-	BasePath    string `json:"base_path" koanf:"base_path"`
-	Bucket      string `json:"bucket" koanf:"bucket"`
-	EndpointURL string `json:"endpoint_url" koanf:"endpoint_url"`
-	Profile     string `json:"profile" koanf:"profile"`
-	Region      string `json:"region" koanf:"region"`
+	AccessKeyID          string `json:"access_key_id" koanf:"access_key_id"`
+	BasePath             string `json:"base_path" koanf:"base_path"`
+	Bucket               string `json:"bucket" koanf:"bucket"`
+	DisableSSL           bool   `json:"disable_ssl" koanf:"disable_ssl"`
+	EndpointURL          string `json:"endpoint_url" koanf:"endpoint_url"`
+	KMSKeyID             string `json:"kms_key_id" koanf:"kms_key_id"`
+	Profile              string `json:"profile" koanf:"profile"`
+	Region               string `json:"region" koanf:"region"`
+	SecretAccessKey      string `json:"secret_access_key" koanf:"secret_access_key"`
+	ServerSideEncryption string `json:"server_side_encryption" koanf:"server_side_encryption"`
+	SessionToken         string `json:"session_token" koanf:"session_token"`
+	UsePathStyle         bool   `json:"use_path_style" koanf:"use_path_style"`
 }
