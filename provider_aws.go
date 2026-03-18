@@ -14,6 +14,7 @@ import (
 	"path"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -47,12 +48,14 @@ type s3PresignClient interface {
 const awsUploadIDKey = "aws_upload_id"
 
 type AWSProvider struct {
-	client    s3API
-	bucket    string
-	basePath  string
-	presigner s3PresignClient
-	logger    Logger
-	now       func() time.Time
+	client               s3API
+	bucket               string
+	basePath             string
+	serverSideEncryption string
+	kmsKeyID             string
+	presigner            s3PresignClient
+	logger               Logger
+	now                  func() time.Time
 }
 
 func NewAWSProvider(client *s3.Client, bucket string) *AWSProvider {
@@ -70,8 +73,32 @@ func (p *AWSProvider) WithLogger(logger Logger) *AWSProvider {
 	return p
 }
 
+func (p *AWSProvider) getLogger() Logger {
+	if p == nil || p.logger == nil {
+		return &DefaultLogger{}
+	}
+	return p.logger
+}
+
 func (p *AWSProvider) WithBasePath(basePath string) *AWSProvider {
 	p.basePath = basePath
+	return p
+}
+
+func (p *AWSProvider) Client() s3API {
+	if p == nil {
+		return nil
+	}
+	return p.client
+}
+
+func (p *AWSProvider) WithServerSideEncryption(algorithm, kmsKeyID string) *AWSProvider {
+	normalized, err := NormalizeServerSideEncryption(algorithm)
+	if err != nil {
+		normalized = strings.TrimSpace(algorithm)
+	}
+	p.serverSideEncryption = normalized
+	p.kmsKeyID = strings.TrimSpace(kmsKeyID)
 	return p
 }
 
@@ -81,22 +108,25 @@ func (p *AWSProvider) UploadFile(ctx context.Context, path string, content []byt
 		opt(md)
 	}
 
-	p.logger.Info("upload image", "bucket", p.bucket, "path", path)
+	logger := p.getLogger()
+	logger.Info("upload image", "bucket", p.bucket, "path", path)
 
 	res, err := p.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:       aws.String(p.bucket),
-		Key:          p.getKey(path),
-		Body:         bytes.NewReader(content),
-		ContentType:  aws.String(md.ContentType),
-		CacheControl: aws.String(md.CacheControl),
-		ACL:          types.ObjectCannedACLPrivate,
+		Bucket:               aws.String(p.bucket),
+		Key:                  p.getKey(path),
+		Body:                 bytes.NewReader(content),
+		ContentType:          aws.String(md.ContentType),
+		CacheControl:         aws.String(md.CacheControl),
+		ACL:                  types.ObjectCannedACLPrivate,
+		ServerSideEncryption: p.serverSideEncryptionType(),
+		SSEKMSKeyId:          p.kmsKeyIDPtr(),
 	})
 	if err != nil {
-		p.logger.Error("S3 upload failed", err)
+		logger.Error("S3 upload failed", err)
 		return "", fmt.Errorf("failed to upload image: %w", err)
 	}
 
-	p.logger.Info("upload image", "res", print.MaybeHighlightJSON(res))
+	logger.Info("upload image", "res", print.MaybeHighlightJSON(res))
 
 	return p.getURL(path), nil
 }
@@ -179,9 +209,11 @@ func (p *AWSProvider) InitiateChunked(ctx context.Context, session *ChunkSession
 	}
 
 	input := &s3.CreateMultipartUploadInput{
-		Bucket: p.bucketPtr(),
-		Key:    p.getKey(session.Key),
-		ACL:    types.ObjectCannedACLPrivate,
+		Bucket:               p.bucketPtr(),
+		Key:                  p.getKey(session.Key),
+		ACL:                  types.ObjectCannedACLPrivate,
+		ServerSideEncryption: p.serverSideEncryptionType(),
+		SSEKMSKeyId:          p.kmsKeyIDPtr(),
 	}
 
 	if session.Metadata != nil {
@@ -352,6 +384,12 @@ func (p *AWSProvider) CreatePresignedPost(ctx context.Context, key string, metad
 	if creds.SessionToken != "" {
 		conditions = append(conditions, map[string]string{"x-amz-security-token": creds.SessionToken})
 	}
+	if algorithm := strings.TrimSpace(p.serverSideEncryption); algorithm != "" {
+		conditions = append(conditions, map[string]string{"x-amz-server-side-encryption": algorithm})
+	}
+	if kmsKeyID := strings.TrimSpace(p.kmsKeyID); kmsKeyID != "" {
+		conditions = append(conditions, map[string]string{"x-amz-server-side-encryption-aws-kms-key-id": kmsKeyID})
+	}
 
 	expiry := now.Add(metadata.TTL)
 
@@ -388,6 +426,12 @@ func (p *AWSProvider) CreatePresignedPost(ctx context.Context, key string, metad
 	}
 	if creds.SessionToken != "" {
 		fields["X-Amz-Security-Token"] = creds.SessionToken
+	}
+	if algorithm := strings.TrimSpace(p.serverSideEncryption); algorithm != "" {
+		fields["x-amz-server-side-encryption"] = algorithm
+	}
+	if kmsKeyID := strings.TrimSpace(p.kmsKeyID); kmsKeyID != "" {
+		fields["x-amz-server-side-encryption-aws-kms-key-id"] = kmsKeyID
 	}
 
 	endpoint := p.buildBucketEndpoint(region)
@@ -473,6 +517,25 @@ func (p *AWSProvider) timeNow() time.Time {
 		return p.now()
 	}
 	return time.Now()
+}
+
+func (p *AWSProvider) serverSideEncryptionType() types.ServerSideEncryption {
+	switch strings.ToLower(strings.TrimSpace(p.serverSideEncryption)) {
+	case strings.ToLower(string(types.ServerSideEncryptionAes256)):
+		return types.ServerSideEncryptionAes256
+	case strings.ToLower(string(types.ServerSideEncryptionAwsKms)), "kms":
+		return types.ServerSideEncryptionAwsKms
+	default:
+		return ""
+	}
+}
+
+func (p *AWSProvider) kmsKeyIDPtr() *string {
+	kmsKeyID := strings.TrimSpace(p.kmsKeyID)
+	if kmsKeyID == "" {
+		return nil
+	}
+	return aws.String(kmsKeyID)
 }
 
 func deriveSigningKey(secret, dateStamp, region string) []byte {
