@@ -120,7 +120,15 @@ func (p *FSProvider) Validate(ctx context.Context) error {
 
 	info, err := os.Stat(p.base)
 	if err != nil {
-		return fmt.Errorf("fs provider: stat base path: %w", err)
+		if errors.Is(err, os.ErrNotExist) {
+			if mkdirErr := os.MkdirAll(p.base, 0o755); mkdirErr != nil {
+				return fmt.Errorf("fs provider: create base path: %w", mkdirErr)
+			}
+			info, err = os.Stat(p.base)
+		}
+		if err != nil {
+			return fmt.Errorf("fs provider: stat base path: %w", err)
+		}
 	}
 
 	if !info.IsDir() {
